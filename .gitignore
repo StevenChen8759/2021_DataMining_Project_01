@@ -1,3 +1,4 @@
 dataset/
 *.exe
 __pycache__/
+output/
