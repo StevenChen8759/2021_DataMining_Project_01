@@ -68,6 +68,8 @@ def find_association_rule(
         minsup (int): minimum support for finding frequent itemset
         minconf (int): minimum confidence for finding frequent itemset
     """
+    # TODO: combine duplicated and similar pattern in this function
+
     # Evaluate minimum support count
     minsup_count = round(minsup * len(transactions))
 
@@ -135,13 +137,14 @@ def find_association_rule(
 
         k_value += 1
 
-
     # Record association rules for specific frequent itemset with confidence value
     # Dict[itemset in tuple format, association rules for specific frequent itemset in dict format]
     #                               => Dict[association rule, cofidence of rule]
     final_association_rules: Dict[Tuple[Any], Dict[Tuple[Any], float]] = dict()
+    total_rule_count: int = 0
+    is_added_new_rule: bool = False
 
-    logger.debug("Find association rules and collect rules which satisfy minimum confidence")
+    logger.debug("Find association rules and collect them.")
 
     # Traverse all frequent itemset with different rule length where length >= 2
     for rule_length in range(2, len(k_frequent_itemset)):
@@ -155,79 +158,102 @@ def find_association_rule(
                     tuple(itemset[j] for j in range(rule_length) if i == j)
                 )
                 for i in range(rule_length)
-                # if round(
-                #     k_frequent_itemset[rule_length][itemset] /
-                #     k_frequent_itemset[rule_length - 1][tuple(itemset[j] for j in range(rule_length) if i != j)],
-                #     2,
-                # ) >= minconf
             )
 
             # Pruning - Add rules into final_association_rules where confidence value is higher than minconf
+            is_added_new_rule = False
             for candidate_rule in candidate_rules:
+                # For traversing convenience, we compose original itemset here
+                # FIXME: 考量 Python 為泛型程式設計語言，須留意未實作排序的資料結構，可能會需要額外的排序函式。
                 original_itmeset = tuple(sorted({*candidate_rule[0], *candidate_rule[1]}))
+
+                # Evaluate confidence value
                 confidence = (
                     k_frequent_itemset[rule_length][original_itmeset] /
                     k_frequent_itemset[rule_length - 1][candidate_rule[0]]
                 )
+
+                # Filter by minimum confidence threshold
                 if confidence >= minconf:
+                    # Dict operation for creating key for specific rule output length
                     if 1 not in found_association_rules:
                         found_association_rules[1] = dict()
-                    found_association_rules[1][candidate_rule] = confidence
-                    print(f"Found association rule {candidate_rule}, confidence: {confidence: .2f}")
 
-            # Rule expansion and Evaluate confidence value
+                    # Add candidate rule and assign confidence value for rule
+                    found_association_rules[1][candidate_rule] = confidence
+
+                    # Count new rule and set loop parameter
+                    is_added_new_rule = True
+                    total_rule_count += 1
+
+            # If no any candidate rules or new rules in candidate available, continue to scan next frequent itemset
+            if not is_added_new_rule:
+                continue
+
+            # Rule expansion and evaluate confidence value while rule length is bigger than 2
             rule_oplen = 2
             while rule_length > 2:
+                # Collect source for rule expansion
                 rule_expand_source = list(found_association_rules[rule_oplen - 1].keys())
+
+                # Clear old candidate rules
                 candidate_rules.clear()
 
-                # Run intersecion on input set and union on output set while rule length is bigger than 2
-                # print(rule_expand_source)
-
-                # Generate new rules which output length matches specific rule_oplen
+                # Generate new rules by traversing rule_expand_source with set operations
                 for i in range(len(rule_expand_source)):
                     for j in range(i + 1, len(rule_expand_source)):
-                        # print(f"{i}, {j}, Generate rules by {rule_expand_source[i]} and {rule_expand_source[j]}")
+                        # Run intersecion on input set and union on output set to expand new rules
+                        # FIXME: 考量 Python 為泛型程式設計語言，須留意未實作排序的資料結構，可能會需要額外的排序函式。
                         new_rule = (
                             tuple(sorted(set(rule_expand_source[i][0]).intersection(set(rule_expand_source[j][0])))),
                             tuple(sorted(set(rule_expand_source[i][1]).union(set(rule_expand_source[j][1]))))
                         )
 
-                        if len(new_rule[0]) > 0 and len(new_rule[1]) == rule_oplen and len(new_rule[0]) + len(new_rule[1]) == rule_length:
+                        # Add to candidate rules set if new rule satisfies specific condition
+                        if (
+                            len(new_rule[0]) > 0 and
+                            len(new_rule[1]) == rule_oplen and
+                            len(new_rule[0]) + len(new_rule[1]) == rule_length
+                        ):
                             candidate_rules.update([new_rule])
 
                 # Pruning - Add rules into final_association_rules where confidence value is higher than minconf
-                new_rule_count = 0
+                is_added_new_rule = False
                 for candidate_rule in candidate_rules:
-                    # print(candidate_rule)
+                    # For traversing convenience, we compose original itemset here
+                    # FIXME: 考量 Python 為泛型程式設計語言，須留意未實作排序的資料結構，可能會需要額外的排序函式。
                     original_itmeset = tuple(sorted(set({*candidate_rule[0], *candidate_rule[1]})))
+
+                    # Evaluate confidence value with stored support count in frequent itemset
                     confidence = (
                         k_frequent_itemset[rule_length][original_itmeset] /
                         k_frequent_itemset[rule_length - rule_oplen][candidate_rule[0]]
                     )
+
+                    # Filter by minimum confidence threshold
                     if confidence >= minconf:
+                        # Dict operation for creating key for specific rule output length
                         if rule_oplen not in found_association_rules:
                             found_association_rules[rule_oplen] = dict()
-                        found_association_rules[rule_oplen][candidate_rule] = confidence
-                        print(f"Found association rule {candidate_rule}, confidence: {confidence: .2f}")
-                        new_rule_count += 1
 
-                # If no any candidate rules or new rules in candidate available, stop looping
-                if new_rule_count == 0:
+                        # Add candidate rule and assign confidence value for rule
+                        found_association_rules[rule_oplen][candidate_rule] = confidence
+
+                        # Count new rule and set loop parameter
+                        is_added_new_rule = True
+                        total_rule_count += 1
+
+                # If no any candidate rules or new rules in candidate available, stop rule expansion loop
+                if not is_added_new_rule:
                     break
 
+                # Add rule output length for next iteration
                 rule_oplen += 1
 
+            # Add found rules to final association rules set
             final_association_rules[itemset] = found_association_rules
 
-    rule_count = 0
-    for freq_itemset in final_association_rules:
-        for rule_output_length in final_association_rules[freq_itemset]:
-            rule_count += len(final_association_rules[freq_itemset][rule_output_length])
-            # for association_rule in final_association_rules[freq_itemset][rule_output_length]:
-            #     print(association_rule)
-
-    logger.debug(f"Found {rule_count} valid association rules")
+    logger.debug(f"Found {total_rule_count} valid association rules")
 
     return final_association_rules
 
@@ -240,7 +266,11 @@ if __name__ == "__main__":
         ['B', 'E'],
     ]
 
-    result = find_association_rule(transactions, 0.7, 0.8)
+    result = find_association_rule(transactions, 0.6, 0.6)
 
+    rule_list = []
     for res in result:
-        logger.warning(f"Result of {res}:\n{result[res]}")
+        for oplen in result[res]:
+            for rule in result[res][oplen]:
+                logger.success(f"Rule: {rule[0]} -> {rule[1]}, confidence: {result[res][oplen][rule]:.2f}")
+
