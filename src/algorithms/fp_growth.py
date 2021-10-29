@@ -1,79 +1,85 @@
+from logging import log
 import sys
-from typing import Dict, List, OrderedDict, Tuple, Any
+from itertools import product as cartesian_product, repeat
+from typing import ByteString, Dict, List, OrderedDict, Pattern, Tuple, Any
 
 from loguru import logger
 
 
 class FPTreeNode:
     # Attribute of FPTreeNode
-    data: Any
+    data: Any = None
     fp_count: int = None
-    children: List['FPTreeNode'] = []
-    next_pnode: 'FPTreeNode' = None
+    children: List['FPTreeNode'] = None
+    pnode: 'FPTreeNode' = None
+    # ancestor: 'FPTreeNode' = None
 
     #------------------------------------------------------------------------------
     # Initialization Function
     def __init__(self: 'FPTreeNode', data: Any) -> 'FPTreeNode':
         self.data = data
-
-#     #------------------------------------------------------------------------------
-#     # Node Data Operations
-#     def get_data(self: 'FPTreeNode') -> Any:
-#         return self.__data
-
-#     def set_data(self: 'FPTreeNode', data: Any) -> None:
-#         self.__data = data
-
-#     #------------------------------------------------------------------------------
-#     # Node Frequent Pattern Count Operations
-#     def get_fp_count(self: 'FPTreeNode') -> int:
-#         return self.__fp_count
-
-#     def set_fp_count(self: 'FPTreeNode', new_fp_count: int) -> None:
-#         if not isinstance(self.__fp_count, int):
-#             raise ValueError("Frequent Pattern Count is not set.")
-#         self.__fp_count = new_fp_count
-
-#     def set_fp_count_add_1(self: 'FPTreeNode') -> None:
-#         if not isinstance(self.__fp_count, int):
-#             raise ValueError("Frequent Pattern Count is not set.")
-#         self.set_fp_count(self.__fp_count + 1)
-
-#     #------------------------------------------------------------------------------
-#     # Parallel Node Operations
-#     def get_pnode(self: 'FPTreeNode') -> 'FPTreeNode':
-#         return self.__pnode
-
-#     def set_pnode(self: 'FPTreeNode', parallel_node: 'FPTreeNode') -> None:
-#         self.__pnode = parallel_node
-
-#     #------------------------------------------------------------------------------
-#     # Children List Operations
-#     def add_child(self: 'FPTreeNode', child:'FPTreeNode') -> None:
-#         self.__children.append(child)
-
-#     def remove_child(self: 'FPTreeNode', child: 'FPTreeNode') -> None:
-#         self.__children.remove(child)
-
-#     #------------------------------------------------------------------------------
-#     # Child Access Operations
-#     def get_children(self: 'FPTreeNode') -> List['FPTreeNode']:
-#         return self.__children
-
-#     def get_nth_child(self: 'FPTreeNode', n: int) -> 'FPTreeNode':
-#         return self.__children[n]
-
-#     def get_child_count(self: 'FPTreeNode') -> int:
-#         return len(self.__children)
+        self.children = []
 
 
-# def print_fptree(fptree_root: FPTreeNode):
+def print_fptree(fptree_root: FPTreeNode):
+    traverse_node = fptree_root
+    print(f"Node Element: {traverse_node.data} -> {traverse_node.fp_count}")
+
+    # In-order Traversal
+    for child in traverse_node.children:
+        print_fptree(child)
+
+
+def print_fplink(fptree_link: List[FPTreeNode]):
+    for fp1_item in fptree_link:
+        pt_node = fptree_link[fp1_item]
+        node_data = [(pt_node.data, pt_node.fp_count)]          # Head Node Data
+        while pt_node.pnode is not None:
+            pt_node = pt_node.pnode
+            node_data.append((pt_node.data, pt_node.fp_count))
+
+        print(f"{fp1_item} -> {node_data}")
+
+
+# def fp_tree_inorder_traversal(
+#     fptree_root: FPTreeNode,
+#     target_node: FPTreeNode
+# ) -> None:
 #     traverse_node = fptree_root
-#     print(f"Node Element: {traverse_node.get_data()}")
+#     freq_pattern = tuple()
+
+#     if fptree_root == target_node:
+#         return tuple()
 
 #     # In-order Traversal
-#     for child in traverse_node.get_children():
-#         print_fptree(child)
+#     for child in traverse_node.children:
+#         freq_pattern = (traverse_node.data,) if traverse_node.data is not None else tuple() + fp_tree_inorder_traversal(child, target_node)
+
+#     # print(freq_pattern)
+
+#     return freq_pattern
+
+def fp_tree_link_parallel(
+    fptree_root: FPTreeNode,
+    fptree_link: Dict[Any, FPTreeNode]
+) -> None:
+    traverse_node = fptree_root
+
+    # Append to parallel link of tree if node data is not None
+    if traverse_node.data is not None:
+        if fptree_link[traverse_node.data] is not None:
+            # Not first node of item, append at last node
+            pt_node = fptree_link[traverse_node.data]        # Get Head
+            while pt_node.pnode is not None:    # Move to Tail
+                pt_node = pt_node.pnode
+            pt_node.pnode = traverse_node        # Add Node
+        else:
+            # First node of item
+            fptree_link[traverse_node.data] = traverse_node
+
+    # In-order Traversal
+    for child in traverse_node.children:
+        fp_tree_link_parallel(child, fptree_link)
 
 
 @logger.catch(onerror=lambda _: sys.exit(1))
@@ -108,15 +114,24 @@ def find_frequent_itemset(
         if candidate_itemset[itemset] >= minsup_count
     }
 
-    # Print all 1-frequent itemset
-    for itemset in frequent_1_itemset:
-        print(f"{frequent_1_itemset[itemset]} -> {itemset}")
+    # frequent_1_itemset = {
+    #     'f': 4,
+    #     'c': 4,
+    #     'a': 3,
+    #     'b': 3,
+    #     'm': 3,
+    #     'p': 3,
+    # }
+
+    print(frequent_1_itemset)
+
+    # Print count of 1-frequent itemset
     logger.debug(f"Found {len(frequent_1_itemset)} 1-frequent itemset")
 
     # Scan Transactions again to construct ordered transactions without items not in 1-frequent itemset
+    logger.debug("Construct ordered transaction")
     ordered_transactions: List[Any] = []
     for transaction in transactions:
-        print(f"Original Transaction: {transaction}")
         ordered_transaction = []
 
         # Scan 1-frequent itemset in order
@@ -130,29 +145,30 @@ def find_frequent_itemset(
 
         # Add to ordered_transactions if length of ordered_transaction is not zero
         if len(ordered_transaction) > 0:
-            print(f"Ordered Transaction: {ordered_transaction}")
             ordered_transactions.append(ordered_transaction)
 
-        print("----------------------------")
-
     # Scan ordered_transactions to Construct FP-Tree
-    fp_tree_root = FPTreeNode(None, True)
+    logger.debug("Build Up FP-Tree with 1-frequent pattern link")
+    fp_tree_root = FPTreeNode(None)
+    fp_tree_link: Dict[Any, FPTreeNode] = {
+        itemset_1: None
+        for itemset_1 in frequent_1_itemset
+    }
+
     for transaction in ordered_transactions:
         traverse_node = fp_tree_root     # Point to root node of FP-Tree while scanning new transaction
-        print(f"Root Node: {fp_tree_root}")
 
         # Scan items in transaction
         for item in transaction:
             scan_next = False
-            print(f"Traverse Node: {traverse_node}, Children Count: {traverse_node.get_child_count()}")
 
             # Traverse child of node
-            for child_node in traverse_node.get_children():
+            for child_node in traverse_node.children:
 
                 # Check if pattern of node matches the item of transaction
-                if child_node.get_data() == item:
+                if child_node.data == item:
                     # Frequent Pattern Matched, count once.
-                    child_node.set_fp_count_add_1()
+                    child_node.fp_count += 1
 
                     # Replace traversing node to created_node
                     traverse_node = child_node
@@ -164,45 +180,226 @@ def find_frequent_itemset(
                 continue
 
             # No any children match current item, create new node
-            created_node = FPTreeNode(item, False)
-            print(f"Build Node with item {item}")
+            created_node = FPTreeNode(item)
 
             # Don`t forget to count current node as a frequent pattern
-            created_node.set_fp_count_add_1()
+            created_node.fp_count = 1
 
             # Append to traverse_node
-            traverse_node.add_child(created_node)
-            print(f"Created Node: {created_node}, Children Count: {created_node.get_child_count()}")
-            print(f"Final Traverse Node: {traverse_node}, Children Count: {traverse_node.get_child_count()}")
-            print("-")
+            traverse_node.children.append(created_node)
 
             # Replace traversing node to created_node
-            traverse_node = None
             traverse_node = created_node
-            print(f"Replaced Traverse Node: {traverse_node}, Children Count: {traverse_node.get_child_count()}")
-            print("-----------------------")
 
+    fp_tree_link_parallel(fp_tree_root, fp_tree_link)
 
-        break
+    # Print Tree
+    # print_fptree(fp_tree_root)
+    # print_fplink(fp_tree_link)
 
-    # # Print Tree
-    # # print_fptree(fp_tree_root)
-    # print(fp_tree_root.get_children())
+    logger.debug("Use Level Order (BFS) Traversal on FP-Tree to Find All Frequent Pattern Prefixes")
+    # Ref: https://favtutor.com/blogs/breadth-first-search-python
 
+    fp_prefixes: Dict[Any, Dict[Any, FPTreeNode]] = {item: [] for item in frequent_1_itemset}
+    bfs_queue: List[Tuple[FPTreeNode, Tuple]] = [(fp_tree_root, tuple())]
 
-@logger.catch(onerror=lambda _: sys.exit(1))
-def find_association_rule():
-    pass
+    while len(bfs_queue) > 0:
+        # Traverse Node
+        traverse_node, traverse_prefix_nodes = bfs_queue.pop(0)
+
+        # Add to fp_prefixes if length of pattern is bigger than 1
+        if len(traverse_prefix_nodes) > 0:
+            fp_prefixes[traverse_node.data].append(
+                (traverse_prefix_nodes, traverse_node.fp_count)
+            )
+
+        # Add nodes to queue for traversing in future
+        bfs_queue += [
+            (
+                child,
+                traverse_prefix_nodes + (traverse_node,)
+                if traverse_node.data is not None
+                else tuple(),
+            )
+            for child in traverse_node.children
+        ]
+
+    # for itemset in reversed(fp_prefixes):
+    #     print(f"{itemset}")
+    #     for prefix_nodes, support_count in fp_prefixes[itemset]:
+    #         print(f"{tuple(node.data for node in prefix_nodes)} -> {support_count}")
+
+    print("------------------------------------------------")
+
+    # Build up conditional FP-Tree (Traverse in reversed order)
+    cond_fptrees: Dict[Any, Tuple[FPTreeNode, Dict[Any, FPTreeNode]]] = {}
+    for itemset in reversed(fp_prefixes):
+        suffix_support_count = frequent_1_itemset[itemset]
+        print(f"{itemset} -> Support Count {suffix_support_count}")
+
+        # Traverse each prefix in the list of prefixes for specific itemset to build up Conditional FP-Tree
+        cond_fp_tree_root: FPTreeNode = FPTreeNode(None)
+        cond_fp_tree_link: Dict[Any, FPTreeNode] = {}
+
+        # Scan all prefix nodes to find out all possible items
+        for prefix_nodes, _ in fp_prefixes[itemset]:
+            for prefix_node in prefix_nodes:
+                cond_fp_tree_link[prefix_node.data] = None
+
+        # Sort by frequent 1 itemset order
+        # TODO: integrate sorting function into a independent function
+        index_map = {v: i for i, v in enumerate(frequent_1_itemset)}
+        cond_fp_tree_link = {
+            k: v for k, v in
+            sorted(cond_fp_tree_link.items(), key=lambda pair: index_map[pair[0]])
+        }
+
+        # Build Condition FP Tree
+        for prefix_nodes, prefix_support_count in fp_prefixes[itemset]:
+            print([node.data for node in prefix_nodes])
+
+            traverse_node: FPTreeNode = cond_fp_tree_root
+            for prefix_node in prefix_nodes:
+                scan_next = False
+
+                # Check if pattern of node matches the data of prefix_node
+                for child_node in traverse_node.children:
+                    if prefix_node.data == child_node.data:
+                        # Frequent Pattern Matched, count once.
+                        print(f"Prefix matched {prefix_node.data}")
+                        child_node.fp_count += prefix_support_count
+
+                        # Replace traversing node to specific child node
+                        traverse_node = child_node
+
+                        scan_next = True
+                        break
+
+                if scan_next:
+                    continue
+
+                # No any children match current prefix_node.data, create new node
+                created_node = FPTreeNode(prefix_node.data)
+                print(f"Create node {prefix_node.data}")
+
+                # Don`t forget to count current node as a frequent pattern
+                created_node.fp_count = prefix_support_count
+
+                # Append to traverse_node
+                traverse_node.children.append(created_node)
+
+                # Replace traversing node to created_node
+                traverse_node = created_node
+                # print_fptree(cond_fp_tree_root)
+
+        fp_tree_link_parallel(cond_fp_tree_root, cond_fp_tree_link)
+        print("Final Tree:")
+        print_fptree(cond_fp_tree_root)
+        print_fplink(cond_fp_tree_link)
+
+        print("------------")
+        cond_fptrees[itemset] = (cond_fp_tree_root, cond_fp_tree_link)
+
+    # Build up frequent itemset by FP-Tree Traversal (Traverse in reversed order)
+    logger.debug("Generate frequent itemset")
+    frequent_itemset: Dict[Tuple[Any], int] = dict()
+    for suffix in cond_fptrees:
+        print(f"Suffix: {suffix}")
+        fp_tree_root, fp_tree_link = cond_fptrees[suffix]
+
+        valid_prefixes_component: Dict[Any, int] = dict()
+        # Horizontal Scanning
+        for itemset in fp_tree_link:
+            traverse_node = fp_tree_link[itemset]
+            total_support = 0
+
+            while traverse_node is not None:
+                total_support += traverse_node.fp_count
+
+                traverse_node = traverse_node.pnode
+
+            if total_support >= minsup_count:
+                valid_prefixes_component[itemset] = total_support
+            print(f"Parallel Prefix: {itemset} -> {total_support} {'(v)' if total_support >= minsup_count else ''}")
+
+        # Tree Scanning (by BFS)
+        print_fptree(fp_tree_root)
+        traverse_node = fp_tree_root
+        bfs_queue: List[Tuple[FPTreeNode, Tuple]] = [(fp_tree_root, tuple())]
+        bfs_valid_prefixes: Dict[Tuple[Any], int] = {}
+        while len(bfs_queue) > 0:
+            traverse_node, traverse_prefix_nodes = bfs_queue.pop(0)
+
+            # Add to fp_prefixes if length of pattern is bigger than 2
+            if len(traverse_prefix_nodes) > 1:
+                bfs_prefix = tuple([node.data for node in traverse_prefix_nodes])
+                bfs_prefix_support = min([node.fp_count for node in traverse_prefix_nodes])
+
+                print(f"BFS Prefix: {bfs_prefix} -> {bfs_prefix_support} {'(v)' if bfs_prefix_support >= minsup_count else ''} ")
+
+                bfs_valid_prefixes[bfs_prefix] = bfs_prefix_support
+
+            # Add nodes to queue for traversing in future
+            bfs_queue += [
+                (
+                    child,
+                    traverse_prefix_nodes + (child,)
+                    if traverse_node.data is not None
+                    else (child,),
+                )
+                for child in traverse_node.children
+            ]
+
+        for component in bfs_valid_prefixes:
+            print(component)
+
+        valid_prefixes = list(
+            {
+                tuple(set(result))
+                for result in cartesian_product(
+                    tuple(valid_prefixes_component),
+                    repeat=len(valid_prefixes_component)
+                )
+            }
+        )
+
+        for prefix in valid_prefixes:
+            if prefix == tuple():
+                break
+
+            final_support = min([valid_prefixes_component[item] for item in list(prefix)])
+
+            if len(prefix) > 1 and prefix in bfs_valid_prefixes:
+                final_support = min(final_support, bfs_valid_prefixes[prefix])
+
+            complete_itemset = prefix + (suffix,)
+            frequent_itemset[complete_itemset] = final_support
+
+        print("----------------------------")
+    print(frequent_itemset)
 
 
 if __name__ == "__main__":
     find_frequent_itemset(
         [
-            ['a', 'c', 'd', 'f', 'g', 'i', 'm', 'p',],
-            ['a', 'b', 'c', 'f', 'i', 'm', 'o',],
-            ['b', 'f', 'h', 'j', 'o',],
-            ['b', 'c', 'k', 's', 'p',],
-            ['a', 'c', 'e', 'f', 'l', 'm', 'n', 'p',],
+            # ['A', 'C', 'D'],
+            # ['B', 'C', 'E'],
+            # ['A', 'B', 'C', 'E'],
+            # ['B', 'E']
+            # ['a', 'c', 'd', 'f', 'g', 'i', 'm', 'p',],
+            # ['a', 'b', 'c', 'f', 'i', 'm', 'o',],
+            # ['b', 'f', 'h', 'j', 'o',],
+            # ['b', 'c', 'k', 's', 'p',],
+            # ['a', 'c', 'e', 'f', 'l', 'm', 'n', 'p',],
+            ['Bread', 'Milk', 'Beer'],
+            ['Bread', 'Coffee'],
+            ['Bread', 'Egg'],
+            ['Bread', 'Milk', 'Coffee'],
+            ["Milk", 'Egg'],
+            ["Bread", 'Egg'],
+            ['Milk', 'Egg'],
+            ['Bread', 'Milk', 'Egg', 'Beer'],
+            ['Bread', 'Milk', 'Egg']
         ],
-        0.6
+        0.2
     )
