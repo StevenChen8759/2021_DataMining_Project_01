@@ -185,6 +185,9 @@ def find_association_rule(
                 confidence = (
                     k_frequent_itemset[rule_length][original_itmeset] /
                     k_frequent_itemset[rule_length - 1][candidate_rule[0]]
+                    if original_itmeset in k_frequent_itemset[rule_length]
+                       and candidate_rule[0] in k_frequent_itemset[rule_length - 1]
+                    else 0.0
                 )
 
                 # Filter by minimum confidence threshold
