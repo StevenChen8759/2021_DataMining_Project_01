@@ -1,7 +1,7 @@
 from logging import log
 import sys
 from itertools import product as cartesian_product, repeat
-from typing import ByteString, Dict, List, OrderedDict, Pattern, Tuple, Any
+from typing import Dict, List, Tuple, Any
 
 from loguru import logger
 
@@ -41,24 +41,6 @@ def print_fplink(fptree_link: List[FPTreeNode]):
         print(f"{fp1_item} -> {node_data}")
 
 
-# def fp_tree_inorder_traversal(
-#     fptree_root: FPTreeNode,
-#     target_node: FPTreeNode
-# ) -> None:
-#     traverse_node = fptree_root
-#     freq_pattern = tuple()
-
-#     if fptree_root == target_node:
-#         return tuple()
-
-#     # In-order Traversal
-#     for child in traverse_node.children:
-#         freq_pattern = (traverse_node.data,) if traverse_node.data is not None else tuple() + fp_tree_inorder_traversal(child, target_node)
-
-#     # print(freq_pattern)
-
-#     return freq_pattern
-
 def fp_tree_link_parallel(
     fptree_root: FPTreeNode,
     fptree_link: Dict[Any, FPTreeNode]
@@ -77,7 +59,7 @@ def fp_tree_link_parallel(
             # First node of item
             fptree_link[traverse_node.data] = traverse_node
 
-    # In-order Traversal
+    # In-order Traversal to link all nodes in fptree
     for child in traverse_node.children:
         fp_tree_link_parallel(child, fptree_link)
 
@@ -113,17 +95,6 @@ def find_frequent_itemset(
         )
         if candidate_itemset[itemset] >= minsup_count
     }
-
-    # frequent_1_itemset = {
-    #     'f': 4,
-    #     'c': 4,
-    #     'a': 3,
-    #     'b': 3,
-    #     'm': 3,
-    #     'p': 3,
-    # }
-
-    print(frequent_1_itemset)
 
     # Print count of 1-frequent itemset
     logger.debug(f"Found {len(frequent_1_itemset)} 1-frequent itemset")
@@ -229,13 +200,13 @@ def find_frequent_itemset(
     #     for prefix_nodes, support_count in fp_prefixes[itemset]:
     #         print(f"{tuple(node.data for node in prefix_nodes)} -> {support_count}")
 
-    print("------------------------------------------------")
+    # print("------------------------------------------------")
 
     # Build up conditional FP-Tree (Traverse in reversed order)
     cond_fptrees: Dict[Any, Tuple[FPTreeNode, Dict[Any, FPTreeNode]]] = {}
     for itemset in reversed(fp_prefixes):
         suffix_support_count = frequent_1_itemset[itemset]
-        print(f"{itemset} -> Support Count {suffix_support_count}")
+        # print(f"{itemset} -> Support Count {suffix_support_count}")
 
         # Traverse each prefix in the list of prefixes for specific itemset to build up Conditional FP-Tree
         cond_fp_tree_root: FPTreeNode = FPTreeNode(None)
@@ -256,7 +227,7 @@ def find_frequent_itemset(
 
         # Build Condition FP Tree
         for prefix_nodes, prefix_support_count in fp_prefixes[itemset]:
-            print([node.data for node in prefix_nodes])
+            # print([node.data for node in prefix_nodes])
 
             traverse_node: FPTreeNode = cond_fp_tree_root
             for prefix_node in prefix_nodes:
@@ -266,7 +237,7 @@ def find_frequent_itemset(
                 for child_node in traverse_node.children:
                     if prefix_node.data == child_node.data:
                         # Frequent Pattern Matched, count once.
-                        print(f"Prefix matched {prefix_node.data}")
+                        # print(f"Prefix matched {prefix_node.data}")
                         child_node.fp_count += prefix_support_count
 
                         # Replace traversing node to specific child node
@@ -280,7 +251,7 @@ def find_frequent_itemset(
 
                 # No any children match current prefix_node.data, create new node
                 created_node = FPTreeNode(prefix_node.data)
-                print(f"Create node {prefix_node.data}")
+                # print(f"Create node {prefix_node.data}")
 
                 # Don`t forget to count current node as a frequent pattern
                 created_node.fp_count = prefix_support_count
@@ -293,18 +264,18 @@ def find_frequent_itemset(
                 # print_fptree(cond_fp_tree_root)
 
         fp_tree_link_parallel(cond_fp_tree_root, cond_fp_tree_link)
-        print("Final Tree:")
-        print_fptree(cond_fp_tree_root)
-        print_fplink(cond_fp_tree_link)
+        # print("Final Tree:")
+        # print_fptree(cond_fp_tree_root)
+        # print_fplink(cond_fp_tree_link)
 
-        print("------------")
+        # print("------------")
         cond_fptrees[itemset] = (cond_fp_tree_root, cond_fp_tree_link)
 
     # Build up frequent itemset by FP-Tree Traversal (Traverse in reversed order)
     logger.debug("Generate frequent itemset")
     frequent_itemset: Dict[Tuple[Any], int] = dict()
     for suffix in cond_fptrees:
-        print(f"Suffix: {suffix}")
+        # print(f"Suffix: {suffix}")
         fp_tree_root, fp_tree_link = cond_fptrees[suffix]
 
         valid_prefixes_component: Dict[Any, int] = dict()
@@ -320,10 +291,10 @@ def find_frequent_itemset(
 
             if total_support >= minsup_count:
                 valid_prefixes_component[itemset] = total_support
-            print(f"Parallel Prefix: {itemset} -> {total_support} {'(v)' if total_support >= minsup_count else ''}")
+            # print(f"Parallel Prefix: {itemset} -> {total_support} {'(v)' if total_support >= minsup_count else ''}")
 
         # Tree Scanning (by BFS)
-        print_fptree(fp_tree_root)
+        # print_fptree(fp_tree_root)
         traverse_node = fp_tree_root
         bfs_queue: List[Tuple[FPTreeNode, Tuple]] = [(fp_tree_root, tuple())]
         bfs_valid_prefixes: Dict[Tuple[Any], int] = {}
@@ -335,7 +306,7 @@ def find_frequent_itemset(
                 bfs_prefix = tuple([node.data for node in traverse_prefix_nodes])
                 bfs_prefix_support = min([node.fp_count for node in traverse_prefix_nodes])
 
-                print(f"BFS Prefix: {bfs_prefix} -> {bfs_prefix_support} {'(v)' if bfs_prefix_support >= minsup_count else ''} ")
+                # print(f"BFS Prefix: {bfs_prefix} -> {bfs_prefix_support} {'(v)' if bfs_prefix_support >= minsup_count else ''} ")
 
                 bfs_valid_prefixes[bfs_prefix] = bfs_prefix_support
 
@@ -350,8 +321,8 @@ def find_frequent_itemset(
                 for child in traverse_node.children
             ]
 
-        for component in bfs_valid_prefixes:
-            print(component)
+        # for component in bfs_valid_prefixes:
+        #     print(component)
 
         valid_prefixes = list(
             {
@@ -375,8 +346,37 @@ def find_frequent_itemset(
             complete_itemset = prefix + (suffix,)
             frequent_itemset[complete_itemset] = final_support
 
-        print("----------------------------")
-    print(frequent_itemset)
+        # print("----------------------------")
+    # print(frequent_itemset)
+
+    logger.debug(f"Found {len(frequent_1_itemset)} 1-frequent itemset")
+
+    k_frequent_itemset: Dict[int, Dict[Tuple[Any], int]] = dict()
+
+    k_frequent_itemset[1] = {
+        (itemset,): frequent_1_itemset[itemset]
+        for itemset in frequent_1_itemset
+    }
+
+
+    k = 2
+    while True:
+        k_frequent_itemset[k] = {
+            tuple(sorted(itemset)): frequent_itemset[itemset]
+            for itemset in frequent_itemset
+            if len(itemset) == k
+        }
+
+        logger.debug(f"Found {len(k_frequent_itemset[k])} {k}-frequent itemset")
+
+        if len(k_frequent_itemset[k]) == 0:
+            break
+
+        k = k + 1
+
+    # print(k_frequent_itemset)
+
+    return k_frequent_itemset
 
 
 if __name__ == "__main__":
