@@ -1,5 +1,5 @@
 import sys
-from itertools import product as cartesian_product, repeat
+from itertools import product as cartesian_product
 from typing import Any, Dict, List, Set, Tuple
 
 from loguru import logger
@@ -56,17 +56,15 @@ def itemset_join(
 
 
 @logger.catch(onerror=lambda _: sys.exit(1))
-def find_association_rule(
+def find_frequent_itemset(
     transactions: List[List[Any]],
     minsup: float,
-    minconf: float,
 ):
-    """Find association rules by aprori algorithm
+    """Find frequent itemset by aprori algorithm
 
     Args:
         transactions (List[List[Any]]): List of Transactions. For each transaction, it stores items in List format.
         minsup (int): minimum support for finding frequent itemset
-        minconf (int): minimum confidence for finding frequent itemset
     """
     # TODO: combine duplicated and similar pattern in this function
 
@@ -136,6 +134,22 @@ def find_association_rule(
             break
 
         k_value += 1
+
+    return k_frequent_itemset
+
+
+@logger.catch(onerror=lambda _: sys.exit(1))
+def find_association_rule(
+    k_frequent_itemset: Dict[int, Dict[Tuple[Any], int]],
+    minconf: float,
+):
+    """Find association rules by aprori algorithm
+
+    Args:
+        transactions (List[List[Any]]): List of Transactions. For each transaction, it stores items in List format.
+        minsup (int): minimum support for finding frequent itemset
+        minconf (int): minimum confidence for finding frequent itemset
+    """
 
     # Record association rules for specific frequent itemset with confidence value
     # Dict[itemset in tuple format, association rules for specific frequent itemset in dict format]
@@ -260,13 +274,14 @@ def find_association_rule(
 
 if __name__ == "__main__":
     transactions: List[List[str]] = [
-        ['A', 'C', 'D'],
-        ['B', 'C', 'E'],
-        ['A', 'B', 'C', 'E'],
-        ['B', 'E'],
+        ['a', 'c', 'd', 'f', 'g', 'i', 'm', 'p',],
+        ['a', 'b', 'c', 'f', 'i', 'm', 'o',],
+        ['b', 'f', 'h', 'j', 'o',],
+        ['b', 'c', 'k', 's', 'p',],
+        ['a', 'c', 'e', 'f', 'l', 'm', 'n', 'p',],
     ]
 
-    result = find_association_rule(transactions, 0.6, 0.6)
+    result = find_association_rule(transactions, 0.6, 0.8)
 
     rule_list = []
     for res in result:
