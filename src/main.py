@@ -32,8 +32,6 @@ if __name__ == "__main__":
         MINSUP,
     )
 
-    print(aprori_gmb_frequent_itemset)
-
     logger.info(f"[Phase 3/{PHASE_CNT}] GMB - Obtain association rules by Aprori algorithm,, minconf: {MINCONF}")
     aprori_gmb_association_rules = aprori.find_association_rule(
         aprori_gmb_frequent_itemset,
