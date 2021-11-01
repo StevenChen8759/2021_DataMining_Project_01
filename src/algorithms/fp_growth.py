@@ -168,7 +168,7 @@ def find_frequent_itemset(
     # print_fptree(fp_tree_root)
     # print_fplink(fp_tree_link)
 
-    logger.debug("Use Level Order (BFS) Traversal on FP-Tree to Find All Frequent Pattern Prefixes")
+    logger.debug("Use BFS on FP-Tree to Find All Frequent Pattern Prefixes")
     # Ref: https://favtutor.com/blogs/breadth-first-search-python
 
     fp_prefixes: Dict[Any, Dict[Any, FPTreeNode]] = {item: [] for item in frequent_1_itemset}
@@ -203,6 +203,7 @@ def find_frequent_itemset(
     # print("------------------------------------------------")
 
     # Build up conditional FP-Tree (Traverse in reversed order)
+    logger.debug("Build up conditional FP-Tree")
     cond_fptrees: Dict[Any, Tuple[FPTreeNode, Dict[Any, FPTreeNode]]] = {}
     for itemset in reversed(fp_prefixes):
         suffix_support_count = frequent_1_itemset[itemset]
@@ -272,7 +273,7 @@ def find_frequent_itemset(
         cond_fptrees[itemset] = (cond_fp_tree_root, cond_fp_tree_link)
 
     # Build up frequent itemset by FP-Tree Traversal (Traverse in reversed order)
-    logger.debug("Generate frequent itemset")
+    logger.debug("Generate frequent itemset by conditional FP-Tree traversal")
     frequent_itemset: Dict[Tuple[Any], int] = dict()
     for suffix in cond_fptrees:
         # print(f"Suffix: {suffix}")
